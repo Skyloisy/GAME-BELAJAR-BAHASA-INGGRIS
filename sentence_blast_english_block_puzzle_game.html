@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentence Blast — English Block Puzzle</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #0b1120;
+      --bg-panel: #131c31;
+      --bg-slot: #1a2642;
+      --border-subtle: rgba(148, 163, 184, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at 50% 0%, #172554 0%, #0b1120 62%, #070b14 100%);
+      color: #f8fafc;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    /* Block 3D Arcade Aesthetics */
+    .word-block {
+      position: relative;
+      border-radius: 14px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.16s ease, filter 0.16s ease;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .word-block:active {
+      transform: translateY(2px) scale(0.98);
+    }
+
+    /* Part-of-Speech Color System */
+    .pos-subject {
+      background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+      box-shadow: 0 5px 0 #1d4ed8, 0 10px 20px rgba(37, 99, 235, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(147, 197, 253, 0.45);
+      color: #ffffff;
+    }
+
+    .pos-verb {
+      background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+      box-shadow: 0 5px 0 #c2410c, 0 10px 20px rgba(234, 88, 12, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(253, 186, 116, 0.45);
+      color: #ffffff;
+    }
+
+    .pos-object {
+      background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 5px 0 #047857, 0 10px 20px rgba(5, 150, 105, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(110, 231, 183, 0.45);
+      color: #ffffff;
+    }
+
+    .pos-time {
+      background: linear-gradient(180deg, #a855f7 0%, #7e22ce 100%);
+      box-shadow: 0 5px 0 #6b21a8, 0 10px 20px rgba(126, 34, 206, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(216, 180, 254, 0.45);
+      color: #ffffff;
+    }
+
+    .block-selected {
+      transform: translateY(-6px) scale(1.04);
+      outline: 3px solid #fde047;
+      outline-offset: 2px;
+      filter: brightness(1.08);
+      z-index: 20;
+    }
+
+    /* Board Slots */
+    .board-slot {
+      background: rgba(15, 23, 42, 0.72);
+      border: 2px dashed rgba(148, 163, 184, 0.25);
+      border-radius: 14px;
+      min-height: 54px;
+      transition: all 0.18s ease;
+      position: relative;
+    }
+
+    .board-slot.slot-target-ready {
+      border-style: solid;
+      border-color: #fde047;
+      background: rgba(250, 204, 21, 0.1);
+      box-shadow: 0 0 16px rgba(250, 204, 21, 0.22);
+      cursor: pointer;
+    }
+
+    .board-slot.slot-drag-over {
+      transform: scale(1.03);
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.18);
+    }
+
+    .board-slot.hammer-target {
+      border-style: solid;
+      border-color: #fb7185;
+      box-shadow: 0 0 16px rgba(251, 113, 133, 0.38);
+      cursor: pointer;
+      animation: pulseHammer 0.9s infinite alternate;
+    }
+
+    @keyframes pulseHammer {
+      from { transform: scale(1); }
+      to { transform: scale(1.03); }
+    }
+
+    /* Line Clear & Error Animations */
+    @keyframes lineBlast {
+      0% {
+        transform: scale(1);
+        filter: brightness(1);
+        opacity: 1;
+      }
+      35% {
+        transform: scale(1.04);
+        filter: brightness(1.65);
+        box-shadow: 0 0 32px rgba(250, 204, 21, 0.85);
+      }
+      100% {
+        transform: scale(0.92);
+        filter: brightness(2);
+        opacity: 0;
+      }
+    }
+
+    .row-clearing {
+      animation: lineBlast 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes rowShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      40% { transform: translateX(7px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
+    }
+
+    .row-error {
+      animation: rowShake 0.4s ease-in-out;
+      border-color: rgba(244, 63, 94, 0.75) !important;
+      background: rgba(244, 63, 94, 0.1) !important;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.75); opacity: 0; }
+      75% { transform: scale(1.04); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .animate-pop-in {
+      animation: popIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Floating Score Popup */
+    @keyframes floatUp {
+      0% { transform: translateY(0) scale(0.85); opacity: 0; }
+      20% { transform: translateY(-8px) scale(1.08); opacity: 1; }
+      100% { transform: translateY(-42px) scale(1); opacity: 0; }
+    }
+
+    .floating-score {
+      position: fixed;
+      pointer-events: none;
+      z-index: 60;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 900;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+      animation: floatUp 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Particle Burst */
+    .blast-particle {
+      position: fixed;
+      width: 9px;
+      height: 9px;
+      border-radius: 3px;
+      pointer-events: none;
+      z-index: 55;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-between py-3 px-3 sm:py-5 sm:px-6">
+
+  <!-- TOP NAVIGATION & HUD -->
+  <header class="w-full max-w-3xl flex flex-col gap-3">
+    <!-- Brand & Quick Controls -->
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-amber-500 p-0.5 shadow-lg shadow-blue-500/20">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center font-display font-black text-lg text-amber-300">
+            SB
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-white">Sentence Blast</h1>
+            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30">
+              SMP–SMA Edition
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Susun balok kata, bentuk kalimat tepat, dan ledakkan barisnya!</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="btnHowToPlay" class="px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold border border-slate-700/80 transition flex items-center gap-1.5">
+          <span>?</span>
+          <span class="hidden sm:inline">Cara Main</span>
+        </button>
+        <button id="btnSoundToggle" aria-label="Toggle Sound" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition">
+          <!-- Sound On SVG -->
+          <svg id="iconSoundOn" class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H2v6h4l5 4V5z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"></path>
+          </svg>
+          <!-- Sound Off SVG -->
+          <svg id="iconSoundOff" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-400 hidden" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode Selector Tabs -->
+    <div class="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-800">
+      <button data-mode="smp" class="mode-btn py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition flex flex-col sm:flex-row items-center justify-center gap-1 bg-blue-600 text-white shadow-md">
+        <span>SMP Dasar</span>
+        <span class="text-[10px] opacity-80 font-medium">(3 Slot)</span>
+      </button>
+      <button data-mode="sma" class="mode-btn py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition flex flex-col sm:flex-row items-center justify-center gap-1 text-slate-400 hover:text-white">
+        <span>SMA Lanjut</span>
+        <span class="text-[10px] opacity-80 font-medium">(4 Slot)</span>
+      </button>
+      <button data-mode="rush" class="mode-btn py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition flex flex-col sm:flex-row items-center justify-center gap-1 text-slate-400 hover:text-white">
+        <span>Rush 60s</span>
+        <span class="text-[10px] opacity-80 font-medium">(Time Attack)</span>
+      </button>
+    </div>
+
+    <!-- Score, Combo, Hearts & Timer Bar -->
+    <div class="grid grid-cols-4 gap-2 bg-slate-900/85 border border-slate-800/90 rounded-2xl p-2.5 sm:px-4 shadow-lg">
+      <div class="flex flex-col">
+        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Skor</span>
+        <span id="scoreDisplay" class="font-display text-lg sm:text-2xl font-black text-white leading-tight">0</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Rekor</span>
+        <span id="highScoreDisplay" class="font-display text-lg sm:text-2xl font-extrabold text-amber-300 leading-tight">0</span>
+      </div>
+      <div class="flex flex-col items-center justify-center">
+        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Combo</span>
+        <div id="comboBadge" class="mt-0.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-display font-extrabold text-xs sm:text-sm transition-all">
+          x1
+        </div>
+      </div>
+      <div class="flex flex-col items-end justify-center">
+        <span id="statusRightLabel" class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Shield</span>
+        <div id="heartsContainer" class="flex items-center gap-1 mt-0.5 text-base sm:text-lg">
+          <!-- Hearts rendered dynamically -->
+        </div>
+        <div id="timerContainer" class="hidden font-display text-lg sm:text-2xl font-black text-rose-400 leading-tight">
+          60s
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN GAME ARENA -->
+  <main class="w-full max-w-3xl flex-1 flex flex-col justify-center gap-3 my-3">
+    <!-- Educational Feedback Banner -->
+    <div id="feedbackBanner" class="w-full rounded-2xl px-3.5 py-2.5 bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3 transition-all">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span id="feedbackIcon" class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-300 flex items-center justify-center text-sm font-bold shrink-0">
+          💡
+        </span>
+        <p id="feedbackText" class="text-xs sm:text-sm text-slate-200 font-medium leading-snug">
+          Pilih balok kata di bawah, lalu taruh ke kolom warna yang cocok untuk membentuk kalimat lengkap!
+        </p>
+      </div>
+      <span id="grammarTag" class="hidden sm:inline-block shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
+        Simple Present
+      </span>
+    </div>
+
+    <!-- Part-of-Speech Color Legend -->
+    <div id="legendBar" class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[11px] sm:text-xs font-semibold text-slate-300">
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-blue-500 inline-block"></span>Subject (Pelaku)</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-orange-500 inline-block"></span>Verb (Kata Kerja)</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>Object / Complement</span>
+      <span id="legendTimeItem" class="hidden flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-purple-500 inline-block"></span>Time / Context</span>
+    </div>
+
+    <!-- Sentence Lanes Board -->
+    <section aria-label="Sentence Board" class="w-full bg-slate-900/75 border border-slate-800/90 rounded-3xl p-3 sm:p-4 shadow-2xl flex flex-col gap-2.5 sm:gap-3">
+      <div id="boardRowsContainer" class="flex flex-col gap-2.5 sm:gap-3">
+        <!-- Rows generated by JS -->
+      </div>
+    </section>
+  </main>
+
+  <!-- BOTTOM TRAY & POWER-UPS -->
+  <footer class="w-full max-w-3xl flex flex-col gap-3">
+    <!-- Selectable Word Blocks Tray (3 Pieces like Block Blast) -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-3 sm:p-4 shadow-xl">
+      <div class="flex items-center justify-between mb-2.5 px-1">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Balok Tersedia (Ketuk / Geser ke Papan)</span>
+        <span id="trayHint" class="text-xs font-semibold text-amber-300">Pilih 1 balok</span>
+      </div>
+
+      <div id="blockTray" class="grid grid-cols-3 gap-2 sm:gap-3 min-h-[64px] sm:min-h-[72px]">
+        <!-- 3 Word Blocks rendered here -->
+      </div>
+    </div>
+
+    <!-- Power-Ups & Reset Row -->
+    <div class="grid grid-cols-3 gap-2 sm:gap-3">
+      <button id="btnShuffle" class="py-2.5 px-3 rounded-2xl bg-slate-800/95 hover:bg-slate-700/90 active:scale-98 border border-slate-700/80 text-slate-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition">
+        <span>🔄</span>
+        <span>Acak Balok</span>
+        <span id="shuffleCount" class="ml-0.5 px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-300 text-xs">3</span>
+      </button>
+
+      <button id="btnHammer" class="py-2.5 px-3 rounded-2xl bg-slate-800/95 hover:bg-slate-700/90 active:scale-98 border border-slate-700/80 text-slate-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition">
+        <span>🔨</span>
+        <span>Hapus 1 Slot</span>
+        <span id="hammerCount" class="ml-0.5 px-1.5 py-0.2 rounded-md bg-rose-500/20 text-rose-300 text-xs">2</span>
+      </button>
+
+      <button id="btnRestart" class="py-2.5 px-3 rounded-2xl bg-slate-800/95 hover:bg-slate-700/90 active:scale-98 border border-slate-700/80 text-slate-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition">
+        <span>↺</span>
+        <span>Mulai Ulang</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- HOW TO PLAY MODAL -->
+  <div id="howToPlayModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-700/90 rounded-3xl p-5 sm:p-6 shadow-2xl animate-pop-in">
+      <div class="flex items-center justify-between mb-3">
+        <span class="px-2.5 py-1 rounded-full bg-amber-400/15 text-amber-300 text-xs font-extrabold uppercase tracking-wider">Panduan Cepat 5 Detik</span>
+        <button id="closeHowToPlayTop" class="text-slate-400 hover:text-white text-xl font-bold px-2">&times;</button>
+      </div>
+      <h2 class="font-display text-2xl font-black text-white mb-2">Cara Main Sentence Blast</h2>
+      <p class="text-xs sm:text-sm text-slate-300 mb-4 leading-relaxed">
+        Mirip <strong class="text-amber-300">Block Blast</strong>, tapi baloknya adalah potongan kalimat Bahasa Inggris! Susun satu baris penuh dengan struktur yang tepat untuk meledakkan baris dan cetak <strong class="text-emerald-300">Combo</strong>.
+      </p>
+
+      <div class="space-y-2.5 mb-5 text-xs sm:text-sm">
+        <div class="p-3 rounded-2xl bg-slate-800/80 border border-slate-700/70 flex items-start gap-3">
+          <span class="text-lg">🎨</span>
+          <div>
+            <p class="font-bold text-white">1. Ikuti Warna Posisi Kata</p>
+            <p class="text-slate-300 text-xs mt-0.5">
+              <span class="text-blue-400 font-bold">Biru (Subject)</span> →
+              <span class="text-orange-400 font-bold">Oranye (Verb)</span> →
+              <span class="text-emerald-400 font-bold">Hijau (Object)</span>
+              <span class="text-purple-400 font-bold">+ Ungu (Waktu di mode SMA)</span>.
+            </p>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-slate-800/80 border border-slate-700/70 flex items-start gap-3">
+          <span class="text-lg">⚖️</span>
+          <div>
+            <p class="font-bold text-white">2. Cocokkan Grammar & Makna</p>
+            <p class="text-slate-300 text-xs mt-0.5">
+              Subjek tunggal (<em>She, He, My friend</em>) butuh verb berakhiran <strong>-s/-es</strong> (<em>plays, studies</em>). Subjek jamak (<em>They, We, The students</em>) pakai kata dasar (<em>play, study</em>).
+            </p>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-slate-800/80 border border-slate-700/70 flex items-start gap-3">
+          <span class="text-lg">💥</span>
+          <div>
+            <p class="font-bold text-white">3. Line Clear & Combo Streak</p>
+            <p class="text-slate-300 text-xs mt-0.5">
+              Baris yang benar langsung <strong>BLAST!</strong> dan kosong kembali. Jangan sampai semua baris terkunci kalimat yang salah!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <button id="btnStartGameModal" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-display font-extrabold text-base shadow-lg shadow-blue-600/30 transition">
+        Siap Main Sekarang! 🚀
+      </button>
+    </div>
+  </div>
+
+  <!-- GAME OVER MODAL -->
+  <div id="gameOverModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl p-6 text-center shadow-2xl animate-pop-in">
+      <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-3xl">
+        🏆
+      </div>
+      <h2 id="gameOverTitle" class="font-display text-2xl font-black text-white">Sesi Selesai!</h2>
+      <p id="gameOverSubtitle" class="text-xs sm:text-sm text-slate-300 mt-1 mb-5">
+        Latihan struktur kalimat yang keren!
+      </p>
+
+      <div class="grid grid-cols-3 gap-2 bg-slate-800/80 rounded-2xl p-3 mb-5 border border-slate-700/70">
+        <div>
+          <span class="text-[10px] uppercase text-slate-400 font-bold block">Skor Akhir</span>
+          <span id="finalScore" class="font-display text-xl font-black text-white">0</span>
+        </div>
+        <div>
+          <span class="text-[10px] uppercase text-slate-400 font-bold block">Max Combo</span>
+          <span id="finalCombo" class="font-display text-xl font-black text-amber-300">x1</span>
+        </div>
+        <div>
+          <span class="text-[10px] uppercase text-slate-400 font-bold block">Kalimat</span>
+          <span id="finalLines" class="font-display text-xl font-black text-emerald-400">0</span>
+        </div>
+      </div>
+
+      <button id="btnPlayAgain" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-display font-extrabold text-base shadow-lg shadow-emerald-600/30 transition">
+        Main Ronde Baru
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * SENTENCE BLAST — RULE-BASED ENGLISH BLOCK PUZZLE ENGINE
+     * ============================================================================
+     * Designed for SMP & SMA students in Indonesia:
+     * - Zero external database dependencies: uses structured linguistic rules
+     *   (number agreement, tense consistency, semantic category matching).
+     * - Synthesized Web Audio API sound effects for tactile arcade feedback.
+     */
+
+    // ----------------------------------------------------------------------------
+    // 1. WEB AUDIO SYNTHESIZER (Arcade Sound FX without external files)
+    // ----------------------------------------------------------------------------
+    class SoundEngine {
+      constructor() {
+        this.enabled = true;
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freq, type = 'sine', duration = 0.12, gainVal = 0.14, delay = 0) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(gainVal, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration + 0.02);
+      }
+
+      playSelect() {
+        this.playTone(520, 'triangle', 0.08, 0.12);
+      }
+
+      playPlace() {
+        this.playTone(340, 'sine', 0.09, 0.16);
+        this.playTone(510, 'triangle', 0.1, 0.12, 0.04);
+      }
+
+      playBlast(combo = 1) {
+        const base = 440 + Math.min(combo, 6) * 45;
+        this.playTone(base, 'triangle', 0.16, 0.18, 0);
+        this.playTone(base * 1.25, 'triangle', 0.18, 0.18, 0.07);
+        this.playTone(base * 1.5, 'sine', 0.28, 0.2, 0.14);
+      }
+
+      playError() {
+        this.playTone(190, 'sawtooth', 0.16, 0.12, 0);
+        this.playTone(155, 'sawtooth', 0.22, 0.12, 0.11);
+      }
+
+      playPowerup() {
+        this.playTone(600, 'sine', 0.1, 0.14, 0);
+        this.playTone(820, 'sine', 0.14, 0.14, 0.06);
+      }
+    }
+
+    const sfx = new SoundEngine();
+
+    // ----------------------------------------------------------------------------
+    // 2. RULE-BASED LINGUISTIC WORD BANK (SMP & SMA Curated Patterns)
+    // ----------------------------------------------------------------------------
+    const WORD_POOLS = {
+      smp: {
+        grammarFocus: 'Simple Present (S + V1/Vs + O)',
+        subjects: [
+          { text: 'She', num: 'sg', cat: 'human' },
+          { text: 'He', num: 'sg', cat: 'human' },
+          { text: 'My friend', num: 'sg', cat: 'human' },
+          { text: 'Rina', num: 'sg', cat: 'human' },
+          { text: 'They', num: 'pl', cat: 'human' },
+          { text: 'We', num: 'pl', cat: 'human' },
+          { text: 'The students', num: 'pl', cat: 'human' },
+          { text: 'My cousins', num: 'pl', cat: 'human' }
+        ],
+        verbs: [
+          { text: 'studies', num: 'sg', theme: 'study' },
+          { text: 'study', num: 'pl', theme: 'study' },
+          { text: 'reads', num: 'sg', theme: 'read' },
+          { text: 'read', num: 'pl', theme: 'read' },
+          { text: 'plays', num: 'sg', theme: 'play' },
+          { text: 'play', num: 'pl', theme: 'play' },
+          { text: 'writes', num: 'sg', theme: 'write' },
+          { text: 'write', num: 'pl', theme: 'write' },
+          { text: 'watches', num: 'sg', theme: 'watch' },
+          { text: 'watch', num: 'pl', theme: 'watch' }
+        ],
+        objects: [
+          { text: 'English every day', themes: ['study', 'read', 'write'] },
+          { text: 'a science book', themes: ['read', 'study', 'write'] },
+          { text: 'guitar after school', themes: ['play'] },
+          { text: 'badminton together', themes: ['play'] },
+          { text: 'short stories', themes: ['read', 'write'] },
+          { text: 'learning videos', themes: ['watch'] },
+          { text: 'new vocabulary', themes: ['study', 'read', 'write'] }
+        ]
+      },
+      sma: {
+        grammarFocus: 'Present & Past Context (4 Slots)',
+        subjects: [
+          { text: 'The researcher', num: 'sg', cat: 'human' },
+          { text: 'Our teacher', num: 'sg', cat: 'human' },
+          { text: 'She', num: 'sg', cat: 'human' },
+          { text: 'The students', num: 'pl', cat: 'human' },
+          { text: 'They', num: 'pl', cat: 'human' },
+          { text: 'We', num: 'pl', cat: 'human' }
+        ],
+        verbs: [
+          { text: 'analyzes', num: 'sg', tense: 'present', theme: 'study' },
+          { text: 'analyze', num: 'pl', tense: 'present', theme: 'study' },
+          { text: 'presents', num: 'sg', tense: 'present', theme: 'speak' },
+          { text: 'present', num: 'pl', tense: 'present', theme: 'speak' },
+          { text: 'discussed', num: 'any', tense: 'past', theme: 'speak' },
+          { text: 'explored', num: 'any', tense: 'past', theme: 'study' },
+          { text: 'prepares', num: 'sg', tense: 'present', theme: 'prep' },
+          { text: 'prepare', num: 'pl', tense: 'present', theme: 'prep' }
+        ],
+        objects: [
+          { text: 'the experiment data', themes: ['study', 'speak'] },
+          { text: 'a creative solution', themes: ['study', 'speak', 'prep'] },
+          { text: 'the debate topic', themes: ['speak', 'prep'] },
+          { text: 'the final project', themes: ['study', 'prep', 'speak'] }
+        ],
+        times: [
+          { text: 'every morning', tense: 'present' },
+          { text: 'in the lab today', tense: 'present' },
+          { text: 'with great confidence', tense: 'any' },
+          { text: 'yesterday afternoon', tense: 'past' },
+          { text: 'before the deadline', tense: 'any' }
+        ]
+      }
+    };
+
+    const SLOT_META = [
+      { key: 'subject', label: 'Subject', colorClass: 'pos-subject', badge: 'S' },
+      { key: 'verb', label: 'Verb', colorClass: 'pos-verb', badge: 'V' },
+      { key: 'object', label: 'Object', colorClass: 'pos-object', badge: 'O' },
+      { key: 'time', label: 'Context / Time', colorClass: 'pos-time', badge: 'T' }
+    ];
+
+    // ----------------------------------------------------------------------------
+    // 3. GAME STATE
+    // ----------------------------------------------------------------------------
+    const state = {
+      mode: 'smp', // 'smp' | 'sma' | 'rush'
+      rowsCount: 3,
+      colsCount: 3,
+      board: [], // 2D array: [row][col] -> block object or null
+      rowLockedError: [], // tracks rows currently stuck with an invalid sentence
+      tray: [null, null, null],
+      selectedTrayIndex: null,
+      hammerMode: false,
+      score: 0,
+      highScore: 0,
+      combo: 1,
+      maxCombo: 1,
+      linesCleared: 0,
+      shields: 3,
+      shufflesLeft: 3,
+      hammersLeft: 2,
+      timeLeft: 60,
+      timerInterval: null,
+      isGameOver: false
+    };
+
+    // ----------------------------------------------------------------------------
+    // 4. DOM REFERENCES
+    // ----------------------------------------------------------------------------
+    const el = {
+      boardContainer: document.getElementById('boardRowsContainer'),
+      blockTray: document.getElementById('blockTray'),
+      trayHint: document.getElementById('trayHint'),
+      scoreDisplay: document.getElementById('scoreDisplay'),
+      highScoreDisplay: document.getElementById('highScoreDisplay'),
+      comboBadge: document.getElementById('comboBadge'),
+      heartsContainer: document.getElementById('heartsContainer'),
+      timerContainer: document.getElementById('timerContainer'),
+      statusRightLabel: document.getElementById('statusRightLabel'),
+      feedbackBanner: document.getElementById('feedbackBanner'),
+      feedbackIcon: document.getElementById('feedbackIcon'),
+      feedbackText: document.getElementById('feedbackText'),
+      grammarTag: document.getElementById('grammarTag'),
+      legendTimeItem: document.getElementById('legendTimeItem'),
+      shuffleCount: document.getElementById('shuffleCount'),
+      hammerCount: document.getElementById('hammerCount'),
+      btnShuffle: document.getElementById('btnShuffle'),
+      btnHammer: document.getElementById('btnHammer'),
+      btnRestart: document.getElementById('btnRestart'),
+      howToPlayModal: document.getElementById('howToPlayModal'),
+      gameOverModal: document.getElementById('gameOverModal')
+    };
+
+    // ----------------------------------------------------------------------------
+    // 5. GRAMMAR & SEMANTIC VALIDATION ENGINE
+    // ----------------------------------------------------------------------------
+    function validateSentenceRow(rowBlocks) {
+      const subj = rowBlocks[0];
+      const verb = rowBlocks[1];
+      const obj = rowBlocks[2];
+      const time = rowBlocks[3] || null;
+
+      // 1. Check Subject-Verb Number Agreement
+      if (verb.num !== 'any' && subj.num !== verb.num) {
+        if (subj.num === 'sg') {
+          return {
+            valid: false,
+            reason: `Subjek tunggal "${subj.text}" butuh kata kerja berakhiran -s/-es (bukan "${verb.text}").`
+          };
+        } else {
+          return {
+            valid: false,
+            reason: `Subjek jamak "${subj.text}" memakai kata kerja dasar tanpa -s (bukan "${verb.text}").`
+          };
+        }
+      }
+
+      // 2. Check Semantic Verb-Object Fit
+      if (obj.themes && !obj.themes.includes(verb.theme)) {
+        return {
+          valid: false,
+          reason: `Kombinasi "${verb.text} ${obj.text}" kurang pas secara makna. Coba padanan kata kerja lain!`
+        };
+      }
+
+      // 3. Check Tense Consistency in 4-slot SMA/Rush mode
+      if (time && verb.tense && time.tense !== 'any' && verb.tense !== time.tense) {
+        return {
+          valid: false,
+          reason: `Waktu "${time.text}" (${time.tense}) tidak cocok dengan kata kerja "${verb.text}" (${verb.tense}).`
+        };
+      }
+
+      // Valid sentence! Build educational praise
+      const fullSentence = rowBlocks.map(b => b.text).join(' ') + '.';
+      let note = `Tepat! "${fullSentence}" — `;
+      if (verb.num === 'sg') {
+        note += `Subjek tunggal "${subj.text}" cocok dengan "${verb.text}".`;
+      } else if (verb.num === 'pl') {
+        note += `Subjek jamak "${subj.text}" cocok dengan "${verb.text}".`;
+      } else {
+        note += `Tenses dan konteks waktunya selaras!`;
+      }
+
+      return { valid: true, reason: note, sentence: fullSentence };
+    }
+
+    // ----------------------------------------------------------------------------
+    // 6. SMART TRAY GENERATOR (Ensures playable, balanced blocks)
+    // ----------------------------------------------------------------------------
+    function getActivePool() {
+      return state.mode === 'smp' ? WORD_POOLS.smp : WORD_POOLS.sma;
+    }
+
+    function pickRandom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function createBlockItem(posIndex) {
+      const pool = getActivePool();
+      const meta = SLOT_META[posIndex];
+      let raw;
+
+      if (posIndex === 0) raw = pickRandom(pool.subjects);
+      else if (posIndex === 1) raw = pickRandom(pool.verbs);
+      else if (posIndex === 2) raw = pickRandom(pool.objects);
+      else raw = pickRandom(pool.times);
+
+      return {
+        ...raw,
+        posIndex,
+        posKey: meta.key,
+        colorClass: meta.colorClass,
+        uid: Math.random().toString(36).slice(2, 9)
+      };
+    }
+
+    function refillTray() {
+      // Analyze which column types are currently needed most on the board
+      const neededCounts = Array(state.colsCount).fill(0);
+      for (let r = 0; r < state.rowsCount; r++) {
+        if (state.rowLockedError[r]) continue;
+        for (let c = 0; c < state.colsCount; c++) {
+          if (!state.board[r][c]) neededCounts[c]++;
+        }
+      }
+
+      // Build weighted list of slot indices so player never gets soft-locked by missing a part of speech
+      const weightedIndices = [];
+      for (let c = 0; c < state.colsCount; c++) {
+        const weight = Math.max(1, neededCounts[c]);
+        for (let w = 0; w < weight; w++) weightedIndices.push(c);
+      }
+
+      for (let i = 0; i < 3; i++) {
+        const chosenPos = pickRandom(weightedIndices);
+        state.tray[i] = createBlockItem(chosenPos);
+      }
+      state.selectedTrayIndex = 0;
+    }
+
+    // ----------------------------------------------------------------------------
+    // 7. INITIALIZATION & MODE SWITCHING
+    // ----------------------------------------------------------------------------
+    function loadHighScore() {
+      try {
+        const saved = localStorage.getItem(`sentence_blast_hi_${state.mode}`);
+        state.highScore = saved ? parseInt(saved, 10) : 0;
+      } catch (e) {
+        state.highScore = 0;
+      }
+    }
+
+    function saveHighScore() {
+      if (state.score > state.highScore) {
+        state.highScore = state.score;
+        try {
+          localStorage.setItem(`sentence_blast_hi_${state.mode}`, String(state.highScore));
+        } catch (e) {}
+      }
+    }
+
+    function initGame(mode = state.mode) {
+      clearInterval(state.timerInterval);
+      state.mode = mode;
+      state.colsCount = mode === 'smp' ? 3 : 4;
+      state.rowsCount = 3;
+      state.board = Array.from({ length: state.rowsCount }, () => Array(state.colsCount).fill(null));
+      state.rowLockedError = Array(state.rowsCount).fill(false);
+      state.score = 0;
+      state.combo = 1;
+      state.maxCombo = 1;
+      state.linesCleared = 0;
+      state.shields = 3;
+      state.shufflesLeft = 3;
+      state.hammersLeft = 2;
+      state.timeLeft = 60;
+      state.hammerMode = false;
+      state.isGameOver = false;
+
+      loadHighScore();
+      refillTray();
+
+      // Update UI indicators for selected mode
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        const isCurrent = btn.dataset.mode === mode;
+        btn.className = isCurrent
+          ? 'mode-btn py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition flex flex-col sm:flex-row items-center justify-center gap-1 bg-blue-600 text-white shadow-md'
+          : 'mode-btn py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition flex flex-col sm:flex-row items-center justify-center gap-1 text-slate-400 hover:text-white';
+      });
+
+      el.legendTimeItem.classList.toggle('hidden', state.colsCount < 4);
+      el.grammarTag.textContent = getActivePool().grammarFocus;
+
+      if (mode === 'rush') {
+        el.statusRightLabel.textContent = 'Waktu';
+        el.heartsContainer.classList.add('hidden');
+        el.timerContainer.classList.remove('hidden');
+        startRushTimer();
+      } else {
+        el.statusRightLabel.textContent = 'Shield';
+        el.heartsContainer.classList.remove('hidden');
+        el.timerContainer.classList.add('hidden');
+      }
+
+      setFeedback('💡', 'Pilih balok di bawah dan pasang ke kolom warna yang sesuai!', 'neutral');
+      el.gameOverModal.classList.add('hidden');
+      el.gameOverModal.classList.remove('flex');
+      renderAll();
+    }
+
+    function startRushTimer() {
+      el.timerContainer.textContent = `${state.timeLeft}s`;
+      state.timerInterval = setInterval(() => {
+        if (state.isGameOver) return;
+        state.timeLeft--;
+        el.timerContainer.textContent = `${state.timeLeft}s`;
+        if (state.timeLeft <= 10) {
+          el.timerContainer.classList.add('animate-pulse');
+        }
+        if (state.timeLeft <= 0) {
+          clearInterval(state.timerInterval);
+          triggerGameOver('Waktu Habis!', 'Kecepatan dan ketepatanmu luar biasa di Rush Mode!');
+        }
+      }, 1000);
+    }
+
+    // ----------------------------------------------------------------------------
+    // 8. RENDERING FUNCTIONS
+    // ----------------------------------------------------------------------------
+    function renderAll() {
+      renderHUD();
+      renderBoard();
+      renderTray();
+    }
+
+    function renderHUD() {
+      el.scoreDisplay.textContent = state.score;
+      el.highScoreDisplay.textContent = state.highScore;
+
+      el.comboBadge.textContent = `x${state.combo}`;
+      if (state.combo >= 3) {
+        el.comboBadge.className = 'mt-0.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-display font-black text-xs sm:text-sm shadow-md shadow-amber-500/30 scale-105 transition-all';
+      } else if (state.combo === 2) {
+        el.comboBadge.className = 'mt-0.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 font-display font-extrabold text-xs sm:text-sm transition-all';
+      } else {
+        el.comboBadge.className = 'mt-0.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-display font-extrabold text-xs sm:text-sm transition-all';
+      }
+
+      // Render Shields
+      el.heartsContainer.innerHTML = '';
+      for (let i = 0; i < 3; i++) {
+        const span = document.createElement('span');
+        span.textContent = i < state.shields ? '🛡️' : '🖤';
+        span.className = i < state.shields ? 'drop-shadow' : 'opacity-40';
+        el.heartsContainer.appendChild(span);
+      }
+
+      // Powerup counts & states
+      el.shuffleCount.textContent = state.shufflesLeft;
+      el.hammerCount.textContent = state.hammersLeft;
+      el.btnShuffle.disabled = state.shufflesLeft <= 0;
+      el.btnShuffle.classList.toggle('opacity-45', state.shufflesLeft <= 0);
+
+      el.btnHammer.disabled = state.hammersLeft <= 0;
+      el.btnHammer.classList.toggle('opacity-45', state.hammersLeft <= 0);
+      if (state.hammerMode) {
+        el.btnHammer.classList.add('ring-2', 'ring-rose-400', 'bg-rose-950/60');
+      } else {
+        el.btnHammer.classList.remove('ring-2', 'ring-rose-400', 'bg-rose-950/60');
+      }
+    }
+
+    function renderBoard() {
+      el.boardContainer.innerHTML = '';
+      const activeBlock = state.selectedTrayIndex !== null ? state.tray[state.selectedTrayIndex] : null;
+
+      for (let r = 0; r < state.rowsCount; r++) {
+        const rowEl = document.createElement('div');
+        rowEl.id = `board-row-${r}`;
+        rowEl.className = `grid gap-2 sm:gap-2.5 p-2 rounded-2xl border transition-all ${
+          state.rowLockedError[r]
+            ? 'bg-rose-950/30 border-rose-500/50'
+            : 'bg-slate-950/45 border-slate-800/80'
+        }`;
+        rowEl.style.gridTemplateColumns = `repeat(${state.colsCount}, minmax(0, 1fr))`;
+
+        for (let c = 0; c < state.colsCount; c++) {
+          const slotMeta = SLOT_META[c];
+          const cellBlock = state.board[r][c];
+          const slotEl = document.createElement('div');
+
+          const isTargetReady = !state.hammerMode && !cellBlock && activeBlock && activeBlock.posIndex === c;
+          const isHammerTarget = state.hammerMode && Boolean(cellBlock);
+
+          slotEl.className = `board-slot flex items-center justify-center p-1.5 text-center ${
+            isTargetReady ? 'slot-target-ready' : ''
+          } ${isHammerTarget ? 'hammer-target' : ''}`;
+
+          if (cellBlock) {
+            const blockDiv = document.createElement('div');
+            blockDiv.className = `word-block ${cellBlock.colorClass} w-full h-full min-h-[44px] sm:min-h-[48px] px-2 py-1.5 flex items-center justify-center text-xs sm:text-sm leading-tight animate-pop-in`;
+            blockDiv.textContent = cellBlock.text;
+            slotEl.appendChild(blockDiv);
+          } else {
+            const placeholder = document.createElement('span');
+            placeholder.className = 'text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 pointer-events-none';
+            placeholder.textContent = slotMeta.label;
+            slotEl.appendChild(placeholder);
+          }
+
+          // Click / Tap Slot Handler
+          slotEl.addEventListener('click', () => handleSlotClick(r, c, slotEl));
+
+          // Drag & Drop Handlers
+          slotEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!cellBlock && activeBlock && activeBlock.posIndex === c) {
+              slotEl.classList.add('slot-drag-over');
+            }
+          });
+          slotEl.addEventListener('dragleave', () => {
+            slotEl.classList.remove('slot-drag-over');
+          });
+          slotEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            slotEl.classList.remove('slot-drag-over');
+            handleSlotClick(r, c, slotEl);
+          });
+
+          rowEl.appendChild(slotEl);
+        }
+
+        el.boardContainer.appendChild(rowEl);
+      }
+    }
+
+    function renderTray() {
+      el.blockTray.innerHTML = '';
+
+      const activeBlock = state.selectedTrayIndex !== null ? state.tray[state.selectedTrayIndex] : null;
+      if (state.hammerMode) {
+        el.trayHint.textContent = 'Mode Hapus: Ketuk balok di papan!';
+        el.trayHint.className = 'text-xs font-bold text-rose-400';
+      } else if (activeBlock) {
+        el.trayHint.textContent = `Taruh ke kolom ${SLOT_META[activeBlock.posIndex].label}`;
+        el.trayHint.className = 'text-xs font-bold text-amber-300';
+      } else {
+        el.trayHint.textContent = 'Pilih 1 balok';
+        el.trayHint.className = 'text-xs font-semibold text-slate-400';
+      }
+
+      state.tray.forEach((block, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex items-center justify-center';
+
+        if (!block) {
+          const emptySlot = document.createElement('div');
+          emptySlot.className = 'w-full h-14 sm:h-16 rounded-2xl border border-dashed border-slate-800 bg-slate-950/40';
+          wrapper.appendChild(emptySlot);
+        } else {
+          const isSelected = !state.hammerMode && state.selectedTrayIndex === idx;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.draggable = true;
+          btn.className = `word-block ${block.colorClass} w-full h-14 sm:h-16 px-2.5 py-2 flex flex-col items-center justify-center text-center animate-pop-in ${
+            isSelected ? 'block-selected' : ''
+          }`;
+
+          const tag = document.createElement('span');
+          tag.className = 'text-[9px] uppercase tracking-widest opacity-85 font-extrabold mb-0.5';
+          tag.textContent = SLOT_META[block.posIndex].label;
+
+          const word = document.createElement('span');
+          word.className = 'text-xs sm:text-sm font-extrabold leading-tight';
+          word.textContent = block.text;
+
+          btn.appendChild(tag);
+          btn.appendChild(word);
+
+          btn.addEventListener('click', () => {
+            if (state.isGameOver) return;
+            state.hammerMode = false;
+            state.selectedTrayIndex = idx;
+            sfx.playSelect();
+            renderAll();
+          });
+
+          btn.addEventListener('dragstart', () => {
+            state.hammerMode = false;
+            state.selectedTrayIndex = idx;
+            sfx.playSelect();
+            renderBoard();
+          });
+
+          wrapper.appendChild(btn);
+        }
+
+        el.blockTray.appendChild(wrapper);
+      });
+    }
+
+    // ----------------------------------------------------------------------------
+    // 9. CORE GAMEPLAY INTERACTIONS
+    // ----------------------------------------------------------------------------
+    function handleSlotClick(r, c, slotEl) {
+      if (state.isGameOver) return;
+
+      // Hammer Power-Up: Remove 1 placed block from the board
+      if (state.hammerMode) {
+        if (!state.board[r][c]) {
+          setFeedback('🔨', 'Ketuk balok yang sudah terpasang di papan untuk menghapusnya.', 'warn');
+          return;
+        }
+        state.board[r][c] = null;
+        state.rowLockedError[r] = false;
+        state.hammersLeft--;
+        state.hammerMode = false;
+        sfx.playPowerup();
+        setFeedback('✨', 'Balok berhasil dihapus! Lanjutkan susunan kalimatmu.', 'success');
+        renderAll();
+        return;
+      }
+
+      // Normal Placement Mode
+      if (state.selectedTrayIndex === null || !state.tray[state.selectedTrayIndex]) {
+        setFeedback('👆', 'Pilih salah satu balok kata di bagian bawah terlebih dahulu.', 'neutral');
+        return;
+      }
+
+      const chosenBlock = state.tray[state.selectedTrayIndex];
+
+      // Check column part-of-speech match
+      if (chosenBlock.posIndex !== c) {
+        sfx.playError();
+        setFeedback(
+          '⚠️',
+          `Balok "${chosenBlock.text}" adalah ${SLOT_META[chosenBlock.posIndex].label}, taruh di kolom ${SLOT_META[chosenBlock.posIndex].label}!`,
+          'error'
+        );
+        return;
+      }
+
+      // Check if slot already occupied
+      if (state.board[r][c]) {
+        sfx.playError();
+        setFeedback('⚠️', 'Slot ini sudah terisi! Pilih baris lain yang masih kosong.', 'error');
+        return;
+      }
+
+      // Place block onto board
+      state.board[r][c] = chosenBlock;
+      state.tray[state.selectedTrayIndex] = null;
+      sfx.playPlace();
+
+      // Auto-select next available block in tray
+      const nextIdx = state.tray.findIndex(b => b !== null);
+      state.selectedTrayIndex = nextIdx !== -1 ? nextIdx : null;
+
+      // Refill tray when all 3 blocks are used
+      if (state.tray.every(b => b === null)) {
+        refillTray();
+      }
+
+      renderAll();
+
+      // Evaluate if row `r` is now completely filled
+      const isRowComplete = state.board[r].every(cell => cell !== null);
+      if (isRowComplete) {
+        evaluateCompletedRow(r, slotEl);
+      } else {
+        checkSoftLockCondition();
+      }
+    }
+
+    function evaluateCompletedRow(r, triggerEl) {
+      const result = validateSentenceRow(state.board[r]);
+      const rowEl = document.getElementById(`board-row-${r}`);
+
+      if (result.valid) {
+        // LINE BLAST!
+        const earned = 100 * state.combo;
+        state.score += earned;
+        state.linesCleared++;
+        state.maxCombo = Math.max(state.maxCombo, state.combo);
+        const currentCombo = state.combo;
+        state.combo++;
+
+        saveHighScore();
+        sfx.playBlast(currentCombo);
+        setFeedback('💥', result.reason, 'success');
+
+        if (rowEl) {
+          rowEl.classList.add('row-clearing');
+          spawnBlastEffects(rowEl, `+${earned} (x${currentCombo})`);
+        }
+
+        setTimeout(() => {
+          state.board[r] = Array(state.colsCount).fill(null);
+          state.rowLockedError[r] = false;
+          // Ensure tray blocks match newly opened slots if needed
+          if (state.tray.every(b => b === null)) refillTray();
+          renderAll();
+        }, 520);
+      } else {
+        // GRAMMAR MISMATCH
+        state.combo = 1;
+        state.rowLockedError[r] = true;
+        sfx.playError();
+        setFeedback('❌', result.reason, 'error');
+
+        if (rowEl) {
+          rowEl.classList.remove('row-error');
+          void rowEl.offsetWidth; // restart CSS animation
+          rowEl.classList.add('row-error');
+        }
+
+        if (state.mode !== 'rush') {
+          state.shields = Math.max(0, state.shields - 1);
+        }
+
+        renderHUD();
+
+        if (state.mode !== 'rush' && state.shields <= 0) {
+          setTimeout(() => {
+            triggerGameOver('Shield Habis!', 'Perhatikan kecocokan subjek tunggal/jamak dan kata kerjanya ya!');
+          }, 650);
+          return;
+        }
+
+        // Auto-clear invalid row after brief penalty pause so game stays flowing smoothly
+        setTimeout(() => {
+          state.board[r] = Array(state.colsCount).fill(null);
+          state.rowLockedError[r] = false;
+          renderAll();
+        }, 1250);
+      }
+    }
+
+    function checkSoftLockCondition() {
+      // Check if ANY block currently in tray can be placed on ANY empty slot on the board
+      const availableBlocks = state.tray.filter(Boolean);
+      const canPlaceAny = availableBlocks.some(block => {
+        for (let r = 0; r < state.rowsCount; r++) {
+          if (!state.rowLockedError[r] && !state.board[r][block.posIndex]) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (!canPlaceAny && availableBlocks.length > 0) {
+        // Automatically refresh tray once with needed parts so player never gets unfairly stuck
+        setFeedback('🔄', 'Slot kolom penuh untuk balok saat ini — balok otomatis disesuaikan!', 'warn');
+        refillTray();
+        renderTray();
+        renderBoard();
+      }
+    }
+
+    function triggerGameOver(title, subtitle) {
+      state.isGameOver = true;
+      clearInterval(state.timerInterval);
+      document.getElementById('gameOverTitle').textContent = title;
+      document.getElementById('gameOverSubtitle').textContent = subtitle;
+      document.getElementById('finalScore').textContent = state.score;
+      document.getElementById('finalCombo').textContent = `x${state.maxCombo}`;
+      document.getElementById('finalLines').textContent = state.linesCleared;
+
+      el.gameOverModal.classList.remove('hidden');
+      el.gameOverModal.classList.add('flex');
+    }
+
+    // ----------------------------------------------------------------------------
+    // 10. VISUAL FEEDBACK & PARTICLES
+    // ----------------------------------------------------------------------------
+    function setFeedback(icon, text, tone = 'neutral') {
+      el.feedbackIcon.textContent = icon;
+      el.feedbackText.textContent = text;
+
+      el.feedbackBanner.className = 'w-full rounded-2xl px-3.5 py-2.5 border flex items-center justify-between gap-3 transition-all ';
+      if (tone === 'success') {
+        el.feedbackBanner.className += 'bg-emerald-950/65 border-emerald-500/45 text-emerald-100';
+        el.feedbackIcon.className = 'w-7 h-7 rounded-lg bg-emerald-500/25 text-emerald-300 flex items-center justify-center text-sm font-bold shrink-0';
+      } else if (tone === 'error') {
+        el.feedbackBanner.className += 'bg-rose-950/65 border-rose-500/45 text-rose-100';
+        el.feedbackIcon.className = 'w-7 h-7 rounded-lg bg-rose-500/25 text-rose-300 flex items-center justify-center text-sm font-bold shrink-0';
+      } else if (tone === 'warn') {
+        el.feedbackBanner.className += 'bg-amber-950/60 border-amber-500/45 text-amber-100';
+        el.feedbackIcon.className = 'w-7 h-7 rounded-lg bg-amber-500/25 text-amber-300 flex items-center justify-center text-sm font-bold shrink-0';
+      } else {
+        el.feedbackBanner.className += 'bg-slate-900/90 border-slate-800 text-slate-200';
+        el.feedbackIcon.className = 'w-7 h-7 rounded-lg bg-blue-500/20 text-blue-300 flex items-center justify-center text-sm font-bold shrink-0';
+      }
+    }
+
+    function spawnBlastEffects(targetEl, labelText) {
+      const rect = targetEl.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      // Floating score text
+      const floater = document.createElement('div');
+      floater.className = 'floating-score text-xl sm:text-2xl text-amber-300';
+      floater.textContent = labelText;
+      floater.style.left = `${centerX - 45}px`;
+      floater.style.top = `${centerY - 14}px`;
+      document.body.appendChild(floater);
+      setTimeout(() => floater.remove(), 980);
+
+      // Arcade block particles
+      const colors = ['#3b82f6', '#f97316', '#10b981', '#fde047', '#a855f7'];
+      for (let i = 0; i < 18; i++) {
+        const p = document.createElement('div');
+        p.className = 'blast-particle';
+        p.style.backgroundColor = colors[i % colors.length];
+        p.style.left = `${rect.left + Math.random() * rect.width}px`;
+        p.style.top = `${centerY}px`;
+        document.body.appendChild(p);
+
+        const angle = (Math.PI * 2 * i) / 18 + (Math.random() - 0.5) * 0.4;
+        const dist = 45 + Math.random() * 65;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist - 20;
+
+        p.animate(
+          [
+            { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0.2) rotate(180deg)`, opacity: 0 }
+          ],
+          { duration: 550 + Math.random() * 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+        );
+        setTimeout(() => p.remove(), 760);
+      }
+    }
+
+    // ----------------------------------------------------------------------------
+    // 11. BUTTON & EVENT BINDINGS
+    // ----------------------------------------------------------------------------
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sfx.playSelect();
+        initGame(btn.dataset.mode);
+      });
+    });
+
+    el.btnShuffle.addEventListener('click', () => {
+      if (state.isGameOver || state.shufflesLeft <= 0) return;
+      state.shufflesLeft--;
+      state.hammerMode = false;
+      refillTray();
+      sfx.playPowerup();
+      setFeedback('🔄', 'Balok di bawah telah diacak ulang dengan kombinasi baru!', 'warn');
+      renderAll();
+    });
+
+    el.btnHammer.addEventListener('click', () => {
+      if (state.isGameOver || state.hammersLeft <= 0) return;
+      const hasPlacedBlock = state.board.some(row => row.some(cell => cell !== null));
+      if (!hasPlacedBlock) {
+        setFeedback('🔨', 'Belum ada balok di papan yang bisa dihapus.', 'neutral');
+        return;
+      }
+      state.hammerMode = !state.hammerMode;
+      sfx.playSelect();
+      if (state.hammerMode) {
+        setFeedback('🔨', 'Ketuk salah satu balok di papan untuk menghapusnya!', 'warn');
+      } else {
+        setFeedback('💡', 'Mode hapus dibatalkan.', 'neutral');
+      }
+      renderAll();
+    });
+
+    el.btnRestart.addEventListener('click', () => {
+      sfx.playSelect();
+      initGame(state.mode);
+    });
+
+    document.getElementById('btnPlayAgain').addEventListener('click', () => {
+      sfx.playSelect();
+      initGame(state.mode);
+    });
+
+    // Sound Toggle
+    document.getElementById('btnSoundToggle').addEventListener('click', () => {
+      sfx.enabled = !sfx.enabled;
+      document.getElementById('iconSoundOn').classList.toggle('hidden', !sfx.enabled);
+      document.getElementById('iconSoundOff').classList.toggle('hidden', sfx.enabled);
+      if (sfx.enabled) sfx.playSelect();
+    });
+
+    // Modal Controls
+    const closeHowTo = () => {
+      el.howToPlayModal.classList.add('hidden');
+      sfx.playSelect();
+    };
+    document.getElementById('btnHowToPlay').addEventListener('click', () => {
+      el.howToPlayModal.classList.remove('hidden');
+      sfx.playSelect();
+    });
+    document.getElementById('closeHowToPlayTop').addEventListener('click', closeHowTo);
+    document.getElementById('btnStartGameModal').addEventListener('click', closeHowTo);
+
+    // Boot Game on Window Load
+    window.onload = () => {
+      initGame('smp');
+    };
+  </script>
+</body>
+</html>
